@@ -93,17 +93,20 @@ public class MonitoringComputerListener extends ComputerListener {
 
         LOGGER.log(Level.FINE, () -> "preOnline(" + computer + "): " + openTelemetryAttributesAction);
         computer.addAction(openTelemetryAttributesAction);
-    }
-
-    @Override
-    public void onOnline(Computer c, TaskListener listener) throws IOException, InterruptedException {
-        super.onOnline(c, listener);
         updateAgents();
     }
 
     @Override
-    public void onOffline(@NonNull Computer c, @CheckForNull OfflineCause cause) {
-        super.onOffline(c, cause);
+    public void onOnline(Computer computer, TaskListener listener) throws IOException, InterruptedException {
+        super.onOnline(computer, listener);
+        LOGGER.log(Level.FINE, () -> "onOnline(" + computer + ")");
+        updateAgents();
+    }
+
+    @Override
+    public void onOffline(@NonNull Computer computer, @CheckForNull OfflineCause cause) {
+        super.onOffline(computer, cause);
+        LOGGER.log(Level.FINE, () -> "onOffline(" + computer + ")");
         updateAgents();
     }
 
@@ -123,7 +126,7 @@ public class MonitoringComputerListener extends ComputerListener {
     }
 
     private void updateAgents() {
-        Jenkins jenkins = Jenkins.getInstance();
+        Jenkins jenkins = Jenkins.getInstanceOrNull();
         Computer[] computers = new Computer[0];
         if(jenkins != null){
             computers = jenkins.getComputers();
@@ -141,6 +144,9 @@ public class MonitoringComputerListener extends ComputerListener {
         this.offlineAgentsRecorder.record(offlineAgents);
         this.onlineAgentsRecorder.record(onlineAgents);
         this.agentsRecorder.record(computers.length);
+        LOGGER.log(Level.FINE, () -> "updateAgents(total: " + computers.length +
+                                     ", offlineAgents: " + onlineAgents +
+                                     ", online: " + onlineAgents + ")");
     }
 
     /**
