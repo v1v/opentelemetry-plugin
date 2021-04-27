@@ -1,0 +1,71 @@
+jobs:
+  - script: >
+      pipelineJob('scripted-pipeline') {
+        definition {
+          cps {
+            script("""\
+              pipeline {
+                agent any
+                stages {
+                  stage ('test') {
+                    steps {
+                      echo "hello"
+                    }
+                  }
+                }
+              }""".stripIndent())
+          }
+        }
+      }
+  - script: >
+      pipelineJob('declarative-pipeline') {
+        definition {
+          cps {
+            script("""\
+              pipeline {
+                agent any
+                stages {
+                  stage('Build') {
+                    steps {
+                      git 'https://github.com/jglick/simple-maven-project-with-tests.git'
+                      sh "mvn -Dmaven.test.failure.ignore=true clean package"
+                    }
+                    post {
+                      success {
+                        echo "success"
+                      }
+                    }
+                  }
+                }
+              }
+            """.stripIndent())
+          }
+        }
+      }
+  - script: >
+      pipelineJob('scripted-pipeline-with-error') {
+        definition {
+          cps {
+            script("""\
+              node {
+                stage('Prepare') {
+                  echo("Prepare")
+                }
+                stage('Build') {
+                  git 'https://github.com/jglick/simple-maven-project-with-tests.git'
+                  sh "mvn -Dmaven.test.failure.ignore=true clean package"
+                }
+                stage('Post Build') {
+                  error 'Fail'
+                }
+              }
+            """.stripIndent())
+          }
+        }
+      }
+  - script: >
+      freeStyleJob('freestyle') {
+        steps {
+          shell('echo "hi"')
+        }
+      }

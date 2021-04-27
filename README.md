@@ -15,6 +15,7 @@
 - [Getting Started](#getting-started)
 - [Examples](#screenshots)
 - [Configuration as Code](#configuration-as-code)
+- [Demos](#demos)
 - [Contributing](#contributing)
 
 ## Introduction
@@ -276,6 +277,9 @@ See the [jcasc](src/test/resources/io/jenkins/plugins/opentelemetry/jcasc) folde
 For more details see the configuration as code plugin documentation:
 <https://github.com/jenkinsci/configuration-as-code-plugin#getting-started>
 
+## Demos
+
+See the [demos](docs/demos/elastic) folder with various samples.
 
 ## Contributing
 
