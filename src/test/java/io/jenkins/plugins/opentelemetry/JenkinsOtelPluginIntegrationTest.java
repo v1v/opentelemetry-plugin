@@ -28,6 +28,7 @@ import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.recipes.WithPlugin;
 
 import java.util.Collection;
@@ -408,4 +409,38 @@ public class JenkinsOtelPluginIntegrationTest extends BaseIntegrationTest {
         MatcherAssert.assertThat(attributes.get(JenkinsOtelSemanticAttributes.GIT_CLONE_DEPTH), CoreMatchers.is(2L));
     }
 
+    @Test
+    @Issue("https://github.com/jenkinsci/opentelemetry-plugin/issues/132")
+    public void testMetricsWithSimplePipeline() throws Exception {
+        final String jobName = "test-simple-pipeline-" + jobNameSuffix.incrementAndGet();
+        String pipelineScript = "node() {\n" +
+            "    stage('stage1') {\n" +
+            "       echo 'hello world' \n" +
+            "    }\n" +
+            "}";
+        final Node agent = jenkinsRule.createOnlineSlave();
+        WorkflowJob pipeline = jenkinsRule.createProject(WorkflowJob.class, jobName);
+        pipeline.setDefinition(new CpsFlowDefinition(pipelineScript, true));
+        WorkflowRun build = jenkinsRule.assertBuildStatus(Result.SUCCESS, pipeline.scheduleBuild2(0));
+
+        // WORKAROUND because we don't know how to force the IntervalMetricReader to collect metrics
+        Thread.sleep(OpenTelemetrySdkProvider.TESTING_METRIC_EXPORTER_INTERVAL_MILLIS * 3);
+        Map<String, MetricData> exportedMetrics = ((InMemoryMetricExporter) OpenTelemetrySdkProvider.TESTING_METRICS_EXPORTER).getLastExportedMetricByMetricName();
+        dumpMetrics(exportedMetrics);
+        MetricData queueLeftData = exportedMetrics.get(JenkinsSemanticMetrics.JENKINS_QUEUE_LEFT);
+        MatcherAssert.assertThat(queueLeftData, CoreMatchers.notNullValue());
+        MetricData agentOnlineData = exportedMetrics.get(JenkinsSemanticMetrics.JENKINS_AGENTS_ONLINE);
+        MatcherAssert.assertThat(agentOnlineData, CoreMatchers.notNullValue());
+
+        // TODO TEST METRICS WITH PROPER RESET BETWEEN TESTS
+        // Verify the queueLeft metric gets some points.
+        MatcherAssert.assertThat(queueLeftData.getType(), CoreMatchers.is(MetricDataType.LONG_SUM));
+        Collection<LongPointData> metricPoints = queueLeftData.getLongSumData().getPoints();
+        MatcherAssert.assertThat("Queue is non 0", Iterables.getLast(metricPoints).getValue() > 0);
+
+        // Verify the queueLeft metric gets some points.
+        MatcherAssert.assertThat(agentOnlineData.getType(), CoreMatchers.is(MetricDataType.LONG_GAUGE));
+        metricPoints = agentOnlineData.getLongGaugeData().getPoints();
+        MatcherAssert.assertThat("Online is non 0", Iterables.getLast(metricPoints).getValue() > 0);
+    }
 }
